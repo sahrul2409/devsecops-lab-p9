@@ -1,0 +1,24 @@
+# STAGE 1: Build stage - instal dependency
+FROM python:3.12-alpine AS builder
+WORKDIR /build
+# Copy hanya file yang diperlukan
+COPY requirements.txt .
+# Install dependency tanpa cache
+RUN pip install --no-cache-dir --user -r requirements.txt
+
+# STAGE 2: Runtime stage - image final minimal
+FROM python:3.12-alpine AS runtime
+# Buat non-root user
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+WORKDIR /app
+# Copy dependency dari build stage
+COPY --from=builder /root/.local /home/appuser/.local
+# Copy hanya source code yang diperlukan
+COPY --chown=appuser:appgroup app.py .
+# Credential: JANGAN hardcode di sini, suntikkan saat runtime (docker run -e)
+# Jalankan sebagai non-root
+USER appuser
+EXPOSE 8080
+ENTRYPOINT ["python3"]
+CMD ["app.py"]
